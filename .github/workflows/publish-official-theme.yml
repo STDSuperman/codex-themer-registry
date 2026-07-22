@@ -51,6 +51,8 @@ jobs:
           repository: STDSuperman/codex-themer
           ref: ${{ inputs.themer_ref }}
           path: codex-themer
+          ssh-key: ${{ secrets.THEMER_DEPLOY_KEY }}
+          persist-credentials: false
 
       - name: Install Rust 1.95
         uses: dtolnay/rust-toolchain@stable
