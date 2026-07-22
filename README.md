@@ -39,6 +39,8 @@ python3 scripts/stage-official-theme.py /absolute/path/theme-name-1.0.0.ctpack -
 
 脚本会用 Codex Themer 同一源码里的 `ctheme-check` 把普通导出的 `local/<name>` 分享包规范化为 `stdsuperman/<name>`，按需用 `--name` / `--version` 覆盖发布坐标，并从主题预览派生独立卡片图。随后它创建只含规范化分享包与卡片图的 draft Release，并把精确的 Codex Themer commit SHA 交给 `publish-official-theme` workflow。CI 会再次预检，且严格按以下顺序提交：
 
+CI 在 Ubuntu 构建与客户端同一 Rust crate，因此 workflow 显式安装与主项目 Linux 发布任务相同的 Tauri 原生依赖；发布复验不依赖 runner 的偶然预装状态，也不使用一套降级验证器。
+
 1. 校验 draft Release 的 `.ctpack` 与卡片图；
 2. 确定性更新源清单并生成签名元数据；
 3. 运行 registry 契约测试；
