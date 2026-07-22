@@ -1,0 +1,121 @@
+name: Publish official theme
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing draft Release tag created by the staging script
+        required: true
+        type: string
+      themer_ref:
+        description: Exact 40-character Codex Themer commit SHA used for validation
+        required: true
+        type: string
+      featured:
+        description: Add the theme to the official featured set
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: official-theme-registry-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out registry
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate immutable workflow inputs
+        env:
+          THEMER_REF: ${{ inputs.themer_ref }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" == "main" ]] || { echo "Workflow must run from main" >&2; exit 1; }
+          [[ "$THEMER_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "themer_ref must be an exact commit SHA" >&2; exit 1; }
+          [[ "$RELEASE_TAG" =~ ^[a-z0-9][a-z0-9-]*-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo "release_tag is not canonical" >&2; exit 1; }
+
+      - name: Check out the pinned Codex Themer validator
+        uses: actions/checkout@v4
+        with:
+          repository: STDSuperman/codex-themer
+          ref: ${{ inputs.themer_ref }}
+          path: codex-themer
+
+      - name: Install Rust 1.95
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+
+      - name: Download and identify Release assets
+        id: assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 首次运行通常是 draft；若上一次已公开 Release、但目录 push 失败，
+          # 同一 workflow 必须仍可幂等修复目录提交。
+          gh release view "$RELEASE_TAG" --json isDraft >/dev/null
+          mkdir release-assets
+          gh release download "$RELEASE_TAG" --dir release-assets --pattern '*.ctpack' --pattern '*-card.webp'
+          mapfile -t packs < <(find release-assets -maxdepth 1 -type f -name '*.ctpack' -print)
+          mapfile -t cards < <(find release-assets -maxdepth 1 -type f -name '*-card.webp' -print)
+          [[ ${#packs[@]} -eq 1 && ${#cards[@]} -eq 1 ]] || { echo "Release must contain exactly one .ctpack and one card.webp" >&2; exit 1; }
+          echo "pack=${packs[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Revalidate with the client compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run --locked --quiet --manifest-path codex-themer/src-tauri/Cargo.toml --example ctheme-check -- --json --expected-namespace stdsuperman "${{ steps.assets.outputs.pack }}" > report.json
+
+      - name: Update the official source transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          featured_flag=()
+          if [[ "${{ inputs.featured }}" == "true" ]]; then featured_flag+=(--featured); fi
+          python3 scripts/update-official-theme.py --report report.json --assets-dir release-assets --expected-release-tag "${{ inputs.release_tag }}" "${featured_flag[@]}"
+
+      - name: Install the pinned signing dependency
+        run: python3 -m pip install --disable-pip-version-check cryptography==46.0.7
+
+      - name: Generate and verify signed metadata
+        env:
+          SIGNING_KEY_HEX: ${{ secrets.INDEX_SIGNING_KEY_HEX || secrets.SIGNING_KEY_HEX }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/sign-metadata.py
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+
+      # 先公开 Release，目录提交随后才会让客户端发现它。若 push 失败，
+      # 只留下不可发现的孤立 Release，同一输入可以安全重试。
+      - name: Publish the validated Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ inputs.release_tag }}" --draft=false --latest=false
+
+      - name: Commit the signed directory
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'codex-themer-registry[bot]'
+          git config user.email 'codex-themer-registry[bot]@users.noreply.github.com'
+          git add codex-themer-source.json featured.json metadata/metadata-v1.json metadata/metadata-v1.json.sig
+          git commit -m "publish: ${RELEASE_TAG}"
+          git push origin HEAD:main
