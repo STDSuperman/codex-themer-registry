@@ -103,6 +103,19 @@ class CheckedInRegistryTests(unittest.TestCase):
         self.assertEqual(len(featured), len(set(featured)))
         self.assertTrue(set(featured).issubset(known))
 
+    def test_private_validator_checkout_uses_ephemeral_read_only_deploy_key(self):
+        workflow = (REPO_ROOT / ".github/workflows/publish-official-theme.yml").read_text(
+            encoding="utf-8"
+        )
+        checkout_start = workflow.index("- name: Check out the pinned Codex Themer validator")
+        checkout_end = workflow.index("- name: Install Rust 1.95", checkout_start)
+        checkout = workflow[checkout_start:checkout_end]
+        self.assertIn("repository: STDSuperman/codex-themer", checkout)
+        self.assertIn("ref: ${{ inputs.themer_ref }}", checkout)
+        self.assertIn("ssh-key: ${{ secrets.THEMER_DEPLOY_KEY }}", checkout)
+        self.assertIn("persist-credentials: false", checkout)
+        self.assertNotIn("allow-write", checkout)
+
     def test_checked_in_metadata_matches_source_and_signature(self):
         try:
             from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
