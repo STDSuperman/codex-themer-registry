@@ -1,5 +1,29 @@
 {
   "sourceSchemaVersion": 1,
   "namespace": "stdsuperman",
-  "themes": []
+  "themes": [
+    {
+      "name": "registry-smoke-test",
+      "displayName": "Registry Smoke",
+      "description": "官方主题注册表端到端发布链路验收主题。",
+      "tags": [
+        "官方",
+        "验收"
+      ],
+      "license": "MIT",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "minSchemaVersion": 5,
+          "releaseTag": "registry-smoke-test-v0.1.0",
+          "asset": "registry-smoke-test-0.1.0.ctpack",
+          "size": 21199,
+          "sha256": "3340787c6b9a2a720ceba3678a255bd9635b70a0afea2a7eb9f2a388ab6295b3",
+          "publishedAt": "2026-07-22T06:30:00Z",
+          "yanked": false,
+          "yankReason": null
+        }
+      ]
+    }
+  ]
 }
