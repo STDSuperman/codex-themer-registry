@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把已签名的官方元数据封装为可原子替换的单文件传输包。"""
+"""把已签名的官方元数据封装为可原子读取的单文件传输包。"""
 
 import base64
 import json
@@ -51,4 +51,4 @@ def write_bundle(repo_root: Path) -> Path:
 if __name__ == "__main__":
     root = Path(__file__).resolve().parent.parent
     path = write_bundle(root)
-    print(f"✓ Release 目录镜像已写入 {path.relative_to(root)}")
+    print(f"✓ 官方目录传输信封已写入 {path.relative_to(root)}")

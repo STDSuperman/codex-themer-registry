@@ -92,7 +92,7 @@ def main():
     atomic_write(out_dir / "metadata-v1.json.sig", sig_b64.encode("ascii"))
     write_bundle(REPO_ROOT)
 
-    print(f"✓ 元数据已签名并写入 metadata/，Release 单文件镜像已同步生成")
+    print(f"✓ 元数据已签名并写入 metadata/，单文件传输信封已同步生成")
     print(f"  公钥: {public_hex}")
     print(f"  生成时间: {metadata['generatedAt']}")
 
