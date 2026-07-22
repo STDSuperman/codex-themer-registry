@@ -116,6 +116,24 @@ class CheckedInRegistryTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", checkout)
         self.assertNotIn("allow-write", checkout)
 
+    def test_ubuntu_validator_installs_tauri_system_dependencies(self):
+        workflow = (REPO_ROOT / ".github/workflows/publish-official-theme.yml").read_text(
+            encoding="utf-8"
+        )
+        dependencies_start = workflow.index("- name: Install Linux validator dependencies")
+        dependencies_end = workflow.index(
+            "- name: Download and identify Release assets", dependencies_start
+        )
+        bootstrap = workflow[dependencies_start:dependencies_end]
+        self.assertIn("sudo apt-get update", bootstrap)
+        for dependency in (
+            "libwebkit2gtk-4.1-dev",
+            "libappindicator3-dev",
+            "librsvg2-dev",
+            "patchelf",
+        ):
+            self.assertIn(dependency, bootstrap)
+
     def test_checked_in_metadata_matches_source_and_signature(self):
         try:
             from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
