@@ -129,6 +129,12 @@ jobs:
           set -euo pipefail
           git config user.name 'codex-themer-registry[bot]'
           git config user.email 'codex-themer-registry[bot]@users.noreply.github.com'
-          git add codex-themer-source.json featured.json metadata/metadata-v1.json metadata/metadata-v1.json.sig
+          git add codex-themer-source.json featured.json metadata/metadata-v1.json metadata/metadata-v1.json.sig metadata/metadata-v1.bundle.json
           git commit -m "publish: ${RELEASE_TAG}"
           git push origin HEAD:main
+
+  publish-index-mirror:
+    needs: publish
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-index-mirror.yml

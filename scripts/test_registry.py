@@ -151,6 +151,30 @@ class CheckedInRegistryTests(unittest.TestCase):
         signature = base64.b64decode((REPO_ROOT / "metadata/metadata-v1.json.sig").read_text().strip(), validate=True)
         Ed25519PublicKey.from_public_bytes(public).verify(signature, metadata_bytes)
 
+        bundle = json.loads((REPO_ROOT / "metadata/metadata-v1.bundle.json").read_text())
+        self.assertEqual(bundle["bundleSchemaVersion"], 1)
+        self.assertEqual(set(bundle), {"bundleSchemaVersion", "metadataBase64", "signatureBase64"})
+        self.assertEqual(base64.b64decode(bundle["metadataBase64"], validate=True), metadata_bytes)
+        self.assertEqual(base64.b64decode(bundle["signatureBase64"], validate=True), signature)
+
+    def test_signed_index_mirror_is_verified_and_published_under_a_fixed_tag(self):
+        workflow = (REPO_ROOT / ".github/workflows/publish-index-mirror.yml").read_text(
+            encoding="utf-8"
+        )
+        verify = workflow.index("python3 -m unittest discover")
+        upload = workflow.index("gh release upload")
+        self.assertLess(verify, upload)
+        self.assertIn("workflow_call:", workflow)
+        self.assertIn("push:", workflow)
+        self.assertIn("index_tag=registry-index-v1", workflow)
+        self.assertIn("metadata/metadata-v1.bundle.json --clobber", workflow)
+
+        official_workflow = (REPO_ROOT / ".github/workflows/publish-official-theme.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("metadata/metadata-v1.bundle.json", official_workflow)
+        self.assertIn("uses: ./.github/workflows/publish-index-mirror.yml", official_workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

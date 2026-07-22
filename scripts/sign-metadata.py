@@ -14,6 +14,8 @@ import datetime
 import tempfile
 from pathlib import Path
 
+from metadata_bundle import write_bundle
+
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     from cryptography.hazmat.primitives import serialization
@@ -88,8 +90,9 @@ def main():
     out_dir = REPO_ROOT / "metadata"
     atomic_write(out_dir / "metadata-v1.json", metadata_bytes)
     atomic_write(out_dir / "metadata-v1.json.sig", sig_b64.encode("ascii"))
+    write_bundle(REPO_ROOT)
 
-    print(f"✓ 元数据已签名并写入 metadata/")
+    print(f"✓ 元数据已签名并写入 metadata/，Release 单文件镜像已同步生成")
     print(f"  公钥: {public_hex}")
     print(f"  生成时间: {metadata['generatedAt']}")
 

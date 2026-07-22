@@ -1,0 +1,48 @@
+name: Publish signed index mirror
+
+on:
+  workflow_call:
+  push:
+    branches: [main]
+    paths:
+      - metadata/metadata-v1.bundle.json
+      - .github/workflows/publish-index-mirror.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: official-index-mirror-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the signed directory
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install the pinned verification dependency
+        run: python3 -m pip install --disable-pip-version-check cryptography==46.0.7
+
+      - name: Verify the signed directory and transport bundle
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
+      - name: Publish the fixed signed-index asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          index_tag=registry-index-v1
+          if ! gh release view "$index_tag" >/dev/null 2>&1; then
+            gh release create "$index_tag" \
+              --target main \
+              --title "Codex Themer signed registry index v1" \
+              --notes "Mutable transport mirror. Authenticity comes from the bundled Ed25519 signature." \
+              --latest=false
+          fi
+          gh release upload "$index_tag" metadata/metadata-v1.bundle.json --clobber
